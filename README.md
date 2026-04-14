@@ -10,7 +10,7 @@ One-shot bootstrap for a server: generates an SSH deploy key, tells you where to
 4. Press **Enter** in the terminal until access checks pass.
 5. When the **menu** appears, choose **1** (server setup), answer the questions, and **wait** until it finishes (Hestia can take 10–20+ minutes).
 6. **Reboot** if the installer asks you to.
-7. Open the panel URL from the final summary (port **8083**). Login user is shown there (often `hestiaadmin`); password is in `/root/.cronwork-server-setup/hestia-admin-password` on the server.
+7. Open the panel URL from the final summary (port **8083**). Login user is **`admin`** (unless your summary shows otherwise); password is in `/root/.cronwork-server-setup/hestia-admin-password` on the server.
 8. Optional later: run **`sudo bash /opt/cronwork-server-setup/install.sh`** again and use **2** for stricter SSH (have your IP ready).
 
 ## Usage (Ubuntu / Debian)
