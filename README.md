@@ -1,37 +1,37 @@
 # cronwork-bootstrap-public
 
-Sunucuda tek komutla SSH deploy anahtarı oluşturur, GitHub’a public key’i nereye yapıştıracağınızı söyler, erişimi doğrular ve [cronwork-server-setup](https://github.com/doguab/cronwork-server-setup) private reposunu klonlayıp kurulumu başlatır.
+One-shot bootstrap for a server: generates an SSH deploy key, tells you where to paste the public key on GitHub, verifies access, then clones the private [cronwork-server-setup](https://github.com/doguab/cronwork-server-setup) repository and runs `install.sh`.
 
-## Kullanım (Ubuntu / Debian)
+## Usage (Ubuntu / Debian)
 
-Önce `curl` yoksa:
+Install `curl` if needed:
 
 ```bash
 sudo apt-get update && sudo apt-get install -y curl
 ```
 
-Ardından (root veya sudo yetkili kullanıcı):
+Then run as root or a user with `sudo`:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/doguab/cronwork-bootstrap-public/main/bootstrap.sh | bash
 ```
 
-Betik:
+What the script does:
 
-1. `~/.ssh/cronwork_github_ed25519` anahtarını oluşturur (yoksa).
-2. Public key’i ekrana basar ve private repoya **Deploy key** ekleme bağlantısını verir.
-3. Siz anahtarı GitHub’da ekledikten sonra Enter ile test eder (`git ls-remote`).
-4. Başarılıysa repoyu `/opt/cronwork-server-setup` (root) veya `~/cronwork-server-setup` altına klonlar ve `install.sh` çalıştırır.
+1. Creates `~/.ssh/cronwork_github_ed25519` if it does not exist.
+2. Prints the public key and a link to add a **Deploy key** on the private repo.
+3. After you press Enter, tests access with `git ls-remote`.
+4. On success, clones into `/opt/cronwork-server-setup` (as root) or `~/cronwork-server-setup` (non-root) and runs `install.sh`.
 
-## Ortam değişkenleri
+## Environment variables
 
-| Değişken | Açıklama |
-|----------|----------|
-| `PRIVATE_REPO_SSH` | Varsayılan: `git@github.com:doguab/cronwork-server-setup.git` |
-| `CLONE_DIR` | Klon hedefi (belirtmezseniz root: `/opt/cronwork-server-setup`) |
-| `GITHUB_DEPLOY_KEY_URL` | Talimat metninde gösterilen Settings → Keys linki |
+| Variable | Description |
+|----------|-------------|
+| `PRIVATE_REPO_SSH` | Default: `git@github.com:doguab/cronwork-server-setup.git` |
+| `CLONE_DIR` | Clone destination (default for root: `/opt/cronwork-server-setup`) |
+| `GITHUB_DEPLOY_KEY_URL` | Link shown in the instructions (Settings → Deploy keys) |
 
-## Güvenlik
+## Security
 
-- Deploy key’i yalnızca ilgili private repoya ekleyin; yazma izni genelde gerekmez.
-- Bu repo **public**tir; içinde gizli bilgi tutmayın.
+- Add the deploy key only to the intended private repository; read-only is usually enough.
+- This repository is **public** — do not store secrets here.

@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
 #
-# Public betik: sunucuda SSH deploy anahtarı hazırlar, GitHub doğrulaması yapar,
-# ardından private cronwork-server-setup reposunu klonlar ve install.sh çalıştırır.
+# Public bootstrap: creates an SSH deploy key on the server, verifies GitHub access,
+# clones the private cronwork-server-setup repository, then runs install.sh.
 #
-# Örnek:
+# Example:
 #   curl -fsSL https://raw.githubusercontent.com/doguab/cronwork-bootstrap-public/main/bootstrap.sh | bash
-# veya:
+# or:
 #   wget -qO- ... | bash
 #
-# Ortam değişkenleri (isteğe bağlı):
-#   PRIVATE_REPO_SSH  — varsayılan: git@github.com:doguab/cronwork-server-setup.git
-#   CLONE_DIR         — varsayılan: root ise /opt/cronwork-server-setup, değilse ~/cronwork-server-setup
+# Optional environment variables:
+#   PRIVATE_REPO_SSH  — default: git@github.com:doguab/cronwork-server-setup.git
+#   CLONE_DIR         — default: /opt/cronwork-server-setup (root) or ~/cronwork-server-setup
 #
 set -euo pipefail
 
@@ -21,7 +21,7 @@ KEY_FILE="${HOME}/.ssh/${KEY_NAME}"
 GITHUB_DEPLOY_KEY_URL="${GITHUB_DEPLOY_KEY_URL:-https://github.com/doguab/cronwork-server-setup/settings/keys}"
 
 die() {
-	echo "Hata: $*" >&2
+	echo "Error: $*" >&2
 	exit 1
 }
 
@@ -40,10 +40,10 @@ ensure_ssh_dir() {
 
 generate_key_if_needed() {
 	if [ -f "$KEY_FILE" ]; then
-		echo "Mevcut anahtar kullanılıyor: $KEY_FILE"
+		echo "Using existing key: $KEY_FILE"
 		return 0
 	fi
-	echo "Yeni SSH anahtarı oluşturuluyor: $KEY_FILE"
+	echo "Generating new SSH key: $KEY_FILE"
 	ssh-keygen -t ed25519 -a 100 -f "$KEY_FILE" -N "" -C "cronwork-deploy-$(hostname -s 2>/dev/null || echo server)-$(date +%Y%m%d)"
 	chmod 600 "$KEY_FILE" "${KEY_FILE}.pub"
 }
@@ -53,45 +53,45 @@ print_instructions() {
 	pubkey="$(cat "${KEY_FILE}.pub")"
 	echo ""
 	echo "═══════════════════════════════════════════════════════════════════"
-	echo "  1) Aşağıdaki PUBLIC anahtarın tamamını kopyalayın (tek satır):"
+	echo "  1) Copy the entire PUBLIC key below (single line):"
 	echo "═══════════════════════════════════════════════════════════════════"
 	echo ""
 	echo "$pubkey"
 	echo ""
 	echo "═══════════════════════════════════════════════════════════════════"
-	echo "  2) GitHub’da bu private repoya deploy key ekleyin:"
+	echo "  2) Add it as a deploy key to this private repository on GitHub:"
 	echo "      ${GITHUB_DEPLOY_KEY_URL}"
-	echo "     “Add deploy key” → başlık: örn. sunucu-$(hostname -s 2>/dev/null || echo host)"
-	echo "     İçeriği yapıştırın. Salt okunur (Allow write access kapalı) yeterli."
+	echo "     Click \"Add deploy key\", title e.g. server-$(hostname -s 2>/dev/null || echo host)"
+	echo "     Paste the key. Read-only access is enough (leave \"Allow write access\" off)."
 	echo ""
-	echo "     (Alternatif: anahtarı kendi hesabınızın SSH Keys sayfasına eklerseniz"
-	echo "      tüm repolara erişir; deploy key yalnızca bu repo için önerilir.)"
+	echo "     (Alternative: add the key under your account SSH Keys to access all repos;"
+	echo "      a per-repo deploy key is recommended for a single server.)"
 	echo "═══════════════════════════════════════════════════════════════════"
 	echo ""
 }
 
 verify_repo_access() {
 	export GIT_SSH_COMMAND="ssh -i ${KEY_FILE} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
-	# HEAD okunabiliyorsa deploy key doğru demektir.
+	# If HEAD resolves, the deploy key is authorized for this repo.
 	git ls-remote "$PRIVATE_REPO_SSH" HEAD >/dev/null 2>&1
 }
 
 wait_and_verify_loop() {
 	while true; do
-		# curl | bash kullanıldığında stdin betik akışıdır; etkileşim için tty şart.
-		read -r -p "Anahtarı GitHub’a ekledim; bağlantıyı test etmek için Enter’a basın (çıkmak için q): " ans < /dev/tty || true
+		# When piping curl to bash, stdin is the script; use tty for prompts.
+		read -r -p "I added the key on GitHub; press Enter to test (q to quit): " ans < /dev/tty || true
 		if [ "${ans:-}" = "q" ] || [ "${ans:-}" = "Q" ]; then
-			die "Kullanıcı iptal etti."
+			die "Aborted by user."
 		fi
 		if verify_repo_access; then
-			echo "Tamam: Private repoya SSH ile erişim doğrulandı."
+			echo "OK: SSH access to the private repository verified."
 			return 0
 		fi
 		echo ""
-		echo "Henüz olmadı (veya anahtar henüz yetkili değil). Kontrol listesi:"
-		echo "  · Public key tam ve tek satır mı yapıştırıldı?"
-		echo "  · Doğru repository’nin Deploy keys bölümü mü? (user/repo)"
-		echo "  · Birkaç saniye sonra GitHub tarafı güncellenmiş olabilir; tekrar deneyin."
+		echo "Not yet (or the key is not authorized). Checklist:"
+		echo "  · Was the full public key pasted as a single line?"
+		echo "  · Correct repository → Settings → Deploy keys?"
+		echo "  · Wait a few seconds and try again; GitHub may need a moment."
 		echo ""
 	done
 }
@@ -113,12 +113,12 @@ clone_or_update() {
 	export GIT_SSH_COMMAND="ssh -i ${KEY_FILE} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
 
 	if [ -d "${dest}/.git" ]; then
-		echo "Mevcut klon güncelleniyor: $dest"
+		echo "Updating existing clone: $dest"
 		git -C "$dest" pull --ff-only
 	elif [ -d "$dest" ]; then
-		die "$dest var ama git deposu değil; elle taşıyın/silin ve tekrar çalıştırın."
+		die "$dest exists but is not a git repository; move/remove it and run again."
 	else
-		echo "Klonlanıyor: $PRIVATE_REPO_SSH → $dest"
+		echo "Cloning: $PRIVATE_REPO_SSH → $dest"
 		git clone "$PRIVATE_REPO_SSH" "$dest"
 	fi
 }
@@ -126,21 +126,21 @@ clone_or_update() {
 run_installer() {
 	local dest="$1"
 	local installer="${dest}/install.sh"
-	[ -f "$installer" ] || die "install.sh bulunamadı: $installer"
+	[ -f "$installer" ] || die "install.sh not found: $installer"
 
 	if [ "$(id -u)" -eq 0 ]; then
-		echo "Kurulum başlıyor (root): bash $installer"
+		echo "Starting installer (root): bash $installer"
 		exec bash "$installer"
 	else
-		echo "Kurulum root ile çalıştırılmalı."
-		echo "Şunu çalıştırın:"
+		echo "The installer must run as root."
+		echo "Run:"
 		echo "  sudo bash $installer"
 		exec sudo bash "$installer"
 	fi
 }
 
 main() {
-	echo "cronwork_ — SSH deploy hazırlığı ve private repo çekimi"
+	echo "cronwork_ — SSH deploy setup and private repository clone"
 	echo ""
 
 	ensure_packages_debian
