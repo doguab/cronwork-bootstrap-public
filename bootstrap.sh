@@ -25,6 +25,12 @@ die() {
 	exit 1
 }
 
+require_root() {
+	if [ "${EUID:-$(id -u)}" -ne 0 ]; then
+		die "Must run as root. Example: curl -fsSL https://raw.githubusercontent.com/doguab/cronwork-bootstrap-public/main/bootstrap.sh | sudo bash"
+	fi
+}
+
 ensure_packages_debian() {
 	if command -v apt-get >/dev/null 2>&1; then
 		export DEBIAN_FRONTEND=noninteractive
@@ -140,6 +146,7 @@ run_installer() {
 }
 
 main() {
+	require_root
 	echo "cronwork_ — SSH deploy setup and private repository clone"
 	echo ""
 

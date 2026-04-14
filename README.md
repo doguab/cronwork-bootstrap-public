@@ -10,18 +10,18 @@ Install `curl` if needed:
 sudo apt-get update && sudo apt-get install -y curl
 ```
 
-Then run as root or a user with `sudo`:
+**Must run as root** (the script installs packages and clones to `/opt`):
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/doguab/cronwork-bootstrap-public/main/bootstrap.sh | bash
+curl -fsSL https://raw.githubusercontent.com/doguab/cronwork-bootstrap-public/main/bootstrap.sh | sudo bash
 ```
 
 What the script does:
 
-1. Creates `~/.ssh/cronwork_github_ed25519` if it does not exist.
+1. Creates `/root/.ssh/cronwork_github_ed25519` if it does not exist.
 2. Prints the public key and a link to add a **Deploy key** on the private repo.
 3. After you press Enter, tests access with `git ls-remote`.
-4. On success, clones into `/opt/cronwork-server-setup` (as root) or `~/cronwork-server-setup` (non-root) and runs `install.sh`.
+4. On success, clones into `/opt/cronwork-server-setup` and runs `install.sh`.
 
 ## Environment variables
 
