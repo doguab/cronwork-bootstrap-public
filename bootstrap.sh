@@ -44,6 +44,30 @@ ensure_ssh_dir() {
 	chmod 700 "${HOME}/.ssh"
 }
 
+# Zaten private repoya erişim varsa anahtar üretmeden devam et
+try_repo_access_already_ok() {
+	unset GIT_SSH_COMMAND 2>/dev/null || true
+
+	# 1) Var olan deploy key dosyası (cronwork_github_ed25519)
+	if [ -f "$KEY_FILE" ]; then
+		export GIT_SSH_COMMAND="ssh -i ${KEY_FILE} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+		if git ls-remote "$PRIVATE_REPO_SSH" HEAD >/dev/null 2>&1; then
+			echo "OK: Private repoya zaten erişim var ($KEY_FILE). Deploy key adımı atlanıyor."
+			return 0
+		fi
+		unset GIT_SSH_COMMAND
+	fi
+
+	# 2) ~/.ssh/config, ssh-agent veya hesap anahtarı (GIT_SSH_COMMAND olmadan)
+	if ( unset GIT_SSH_COMMAND; git ls-remote "$PRIVATE_REPO_SSH" HEAD >/dev/null 2>&1 ); then
+		echo "OK: Mevcut SSH yapılandırması ile private repoya erişim var. Deploy key adımı atlanıyor."
+		unset GIT_SSH_COMMAND
+		return 0
+	fi
+
+	return 1
+}
+
 generate_key_if_needed() {
 	if [ -f "$KEY_FILE" ]; then
 		echo "Using existing key: $KEY_FILE"
@@ -116,7 +140,10 @@ resolve_clone_dir() {
 
 clone_or_update() {
 	local dest="$1"
-	export GIT_SSH_COMMAND="ssh -i ${KEY_FILE} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+	# try_repo_access_already_ok veya wait_and_verify sonrası GIT_SSH_COMMAND ayarlı olabilir
+	if [ -z "${GIT_SSH_COMMAND:-}" ] && [ -f "$KEY_FILE" ]; then
+		export GIT_SSH_COMMAND="ssh -i ${KEY_FILE} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+	fi
 
 	if [ -d "${dest}/.git" ]; then
 		echo "Updating existing clone: $dest"
@@ -152,9 +179,13 @@ main() {
 
 	ensure_packages_debian
 	ensure_ssh_dir
-	generate_key_if_needed
-	print_instructions
-	wait_and_verify_loop
+
+	if ! try_repo_access_already_ok; then
+		generate_key_if_needed
+		print_instructions
+		wait_and_verify_loop
+		export GIT_SSH_COMMAND="ssh -i ${KEY_FILE} -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+	fi
 
 	local dest
 	dest="$(resolve_clone_dir)"
